@@ -23,6 +23,17 @@ chan0 = AnalogIn(mcp, MCP.P0)
 chan1 = AnalogIn(mcp, MCP.P1)
 chan2 = AnalogIn(mcp, MCP.P2)
 
+# Configure all pins
+# board.17 -> s2 of pri MUX
+# board.27 -> s1
+# board.22 -> s0
+# board.13 -> s2 of sec MUX
+# board.19 -> s1
+# board.26 -> s0
+# board.16 -> s2 of row MUX
+# board.20 -> s1
+# board.21 -> s0
+
 readMuxS2 = digitalio.DigitalInOut(board.D16)
 readMuxS1 = digitalio.DigitalInOut(board.D20)
 readMuxS0 = digitalio.DigitalInOut(board.D21)   # MUX that reads copper tape voltage
@@ -69,6 +80,23 @@ def readCu():
     # Use read MUX to select copper tapes
     for index in range(8):
         selectChannel(index, readMuxS2, readMuxS1, readMuxS0)
+        # print("Reading row %s"%index)
+        # Record reading from ADC pins
+        
+#         if(index == 5):
+#             data0[0][index] = -1
+#             data1[0][index] = -1
+#             data2[0][index] = -1
+#             data3[0][index] = -1
+#         else:
+#             data0[0][index] = chan0.voltage
+#             time.sleep(0.005)
+#             data1[0][index] = chan1.voltage
+#             time.sleep(0.005)
+#             data2[0][index] = chan2.voltage
+#             time.sleep(0.005)
+#             data3[0][index] = -1   
+        
         data0[0][index] = chan0.voltage
         time.sleep(0.001)
         data1[0][index] = chan1.voltage
@@ -79,7 +107,7 @@ def readCu():
         print('ADC voltage Channel 0: ', str(chan0.voltage) + "V")
         print('ADC voltage Channel 1: ', str(chan1.voltage) + "V")
         print('ADC voltage Channel 2: ', str(chan2.voltage) + "V")
-    
+
 # Turn on column copper tape one by one
 def writeCu():          
     # Use primary MUX to select secondary MUX
@@ -97,7 +125,20 @@ def writeCu():
             dataAll[:,i*8+j] = dataTemp[:,0]
             jindex -= 1
 
-def readData():
+def main():
+
+    # Constantly recording the baseline values
+    """ index = 10  # Read and print data for 10 cycles
+    count = 0
+    while count < index:
+        writeCu()
+        print(dataAll[0:20, 0:9])
+
+        # Write to excel
+        df = DataFrame(dataAll[0:20, 0:9])
+        with pd.ExcelWriter('test.xlsx', engine='openpyxl', mode = 'a', if_sheet_exists = 'overlay') as writer:
+            df.to_excel(writer, startrow = count*20, index = False, header = False)
+        count = count + 1 """
 
     # Read values repetitively and take the average
     base_sum = np.zeros([32, 32])
@@ -105,39 +146,46 @@ def readData():
         writeCu()
         base_sum = base_sum + dataAll
         print("Read iteration #%s completed"%str(index+1))
+        # df = DataFrame(dataAll[0:24, 0:8])
+        # with pd.ExcelWriter('record.xlsx', engine='openpyxl', mode = 'a', if_sheet_exists = 'overlay') as writer:
+        #     df.to_excel(writer, startrow = index*24, index = False, header = False)
     avg_sum = base_sum / 1
-
-    # Reorganize matrix
-    data = np.zeros([22, 24])
-    dataCount = 0
-
-    count = 7
-    for i in range(8):
-        for j in range(24):
-            data[dataCount][j] = avg_sum[count][j]
-        count -= 1
-        dataCount += 1
+    # print(avg_sum)
     
-    count = 15
-    for i in range(8):
+    # with open("baself35.txt", "w") as txt_file:
+    with open("leftf35_ang.txt", "w") as txt_file:
+        count = 7
+        for i in range(8):
+            for j in range(24):
+                txt_file.write('%s,'%avg_sum[count][j])
+            txt_file.write('\n')
+            count -= 1
+        
+        count = 15
+        for i in range(8):
+            for j in range(24):
+                txt_file.write('%s,'%avg_sum[count][j])
+            txt_file.write('\n')
+            count -= 1        
+            
+        count = 19
+        for index in range(4):
+            for j in range(24):
+                txt_file.write('%s,'%avg_sum[count][j])
+            txt_file.write('\n')
+            print(count)
+            count += 1
+           
         for j in range(24):
-            data[dataCount][j] = avg_sum[count][j]
-        count -= 1
-        dataCount += 1
-
-    count = 19
-    for i in range(4):
+            txt_file.write('%s,'%avg_sum[18][j])
+        txt_file.write('\n')
+            
         for j in range(24):
-            data[dataCount][j] = avg_sum[count][j]
-        count += 1
-        dataCount += 1
+            txt_file.write('%s,'%avg_sum[23][j])
+        txt_file.write('\n')
     
-    for j in range(24):
-        data[dataCount][j] = avg_sum[18][j]
-    dataCount += 1
+    # df = DataFrame(dataAll)
+    # df.to_excel('square.xlsx', sheet_name='sheet1', index = False, header = False)
 
-    for j in range(24):
-        data[dataCount][j] = avg_sum[23][j]
-    dataCount += 1
-
-    return data
+if __name__ == "__main__":
+    main()    
